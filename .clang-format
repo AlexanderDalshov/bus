@@ -1,0 +1,8 @@
+BasedOnStyle:  Google
+ColumnLimit: 120
+
+Language: Cpp
+Standard: Cpp11
+NamespaceIndentation: None
+Cpp11BracedListStyle: true
+UseTab: Never
