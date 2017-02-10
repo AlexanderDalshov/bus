@@ -25,6 +25,32 @@ struct EventB {
   explicit EventB(std::string s) : s(s) {}
 };
 
+
+class EventBus;
+
+class BusListener {
+ public:
+
+  virtual ~BusListener() {
+    // remove all connections 
+    /*
+    for (auto connection: connections_) {
+      auto bus = connection.lock();
+      if (bus)
+        bus->unsubscribe(this);
+    }
+    */
+  }
+  
+ private:
+  friend class EventBus;
+  void connect(std::weak_ptr<EventBus> bus);
+  void disconnect(std::weak_ptr<EventBus> bus);
+  
+ private:
+  std::vector<std::weak_ptr<EventBus>> connections_; 
+};
+
 //
 class EventBus {
  private:
@@ -117,9 +143,37 @@ struct FooB {
 };
 
 struct FooM {
+  /*
+  FooM(EvenBus* bus) : bus_(bus) {
+    bus.subscribe<EventB>(this, &FooM::methodB);
+  }
+
+  ~FooM() {
+    std::cout<<"FooM::~FooM()"<<std::endl;
+    bus.unsibscribe(this);
+  }
+  */
+  
   void methodB(const EventB& b) {
     std::cout << "FooM::methodB()" << b.s << std::endl;
+    m = b.s;
     // bus.send(EventA(1)); // recursion - tobe implemented
+  }
+  
+  EventBus* bus_;
+
+  std::string m;
+};
+
+struct FooMFactory {
+
+  std::shared_ptr<FooM> case1(EventBus* bus, bool hasA) {
+    std::shared_ptr<FooM> fooM = std::make_shared<FooM>();
+    // bus->subscribe<EventB>(fooM.get());
+    if (hasA) {
+      //...
+    }
+    return fooM;
   }
 };
 
@@ -141,14 +195,19 @@ int main(int argc, char* argv[]) {
   bus.send(EventB("bad"));
 
   FooB fb;
-  FooM fm;
 
   bus.subscribe<EventB>(&f);
   bus.subscribe<EventB>(&fb);
-  bus.subscribe<EventB>(&fm, &FooM::methodB);
+  //
+  {
+    FooM fm;
+    bus.subscribe<EventB>(&fm, &FooM::methodB);
+    //CRASH: we didn't unsubscribe
+    //    bus.unsubscibe(&fm);
+  }
   // bus.subscribe<EventA>(&fb); // not possible to compile - unsupported type but this listener
 
   bus.send(EventB("Hello"));
-  bus.send(EventB("World!"));
+  bus.send(EventB("World! World World World"));
   return 0;
 }
