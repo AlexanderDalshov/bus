@@ -68,7 +68,11 @@ int main(int, char* []) {
 
     core.addSystem(std::make_shared<RouteSystemImpl>());
     //
-    core.configure();
+    success = core.configure();
+    if (!success) {
+      std::cout<<"failed to configure systems"<<std::endl;
+      return 1;
+    }
   }
 
   //

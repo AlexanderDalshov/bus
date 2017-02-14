@@ -42,12 +42,14 @@ class Core {
     return result;
   }
 
-  void configure() {
+  bool configure() {
+    bool success = true;
     for (auto rec : systems_) {
       auto system = rec.second;
       system->core_ = this;
-      system->configure(this);
+      success = system->configure(this) && success;
     }
+    return success;
   }
 
   void shutdown();  // TODO: ?
