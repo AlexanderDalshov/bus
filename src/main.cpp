@@ -1,184 +1,97 @@
 #include <iostream>
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <vector>
-#include <cassert>
 
-namespace detail {
-static size_t nextTypeId = 0;
-}
+#include "core.hpp"
+// #include "event_manager.hpp"
 
-template <typename T>
-size_t GetTypeId() {
-  static const size_t id = detail::nextTypeId++;
-  return id;
-}
+namespace gps {
+class GpsInterface : public SystemInterface<GpsInterface> {
+ public:
+  virtual void sendPos(int x) = 0;
+};
 
-struct EventA {
+struct GPSPositionEvent {
   int x;
-  explicit EventA(int x) : x(x) {}
+  explicit GPSPositionEvent(int x) : x(x) {}
 };
 
-struct EventB {
-  std::string s;
-  explicit EventB(std::string s) : s(s) {}
-};
+}  // gps
 
+namespace gps {
+namespace impl {
 
-class EventBus;
-
-class BusListener {
+class GpsSystemImpl : public GpsInterface {
  public:
-
-  virtual ~BusListener() {
-    // remove all connections 
-    /*
-    for (auto connection: connections_) {
-      auto bus = connection.lock();
-      if (bus)
-        bus->unsubscribe(this);
-    }
-    */
+  void sendPos(int x) override {
+    std::cout<<"GPSImpl::send gps pos "<<x<<std::endl;
+    core()->eventManager().send(GPSPositionEvent(x));
   }
-  
- private:
-  friend class EventBus;
-  void connect(std::weak_ptr<EventBus> bus);
-  void disconnect(std::weak_ptr<EventBus> bus);
-  
- private:
-  std::vector<std::weak_ptr<EventBus>> connections_; 
 };
 
-//
-class EventBus {
- private:
-  struct BaseListener {
-    virtual ~BaseListener() {}
-    virtual void operator()(const void*) = 0;
-  };
-
+class GpsSystemImpl2 : public GpsInterface {
  public:
-  template <typename Event, class Listener>
-  void subscribe(Listener* listener) {
-    struct ListenerImpl : BaseListener {
-      Listener* listener_;
+  void sendPos(int) override {}
+};
+}
+}  // gps impl
 
-      ListenerImpl(Listener* listener) : listener_(listener) {}
-
-      void operator()(const void* event) override {
-        const auto e = static_cast<const Event*>(event);
-        (*listener_)(*e);
-      }
-    };
-
-    auto& listeners = listeners_map_[GetTypeId<Event>()];
-    listeners.push_back(std::make_shared<ListenerImpl>(listener));
-  }
-
-  template <typename Event, class Listener>
-  void subscribe(Listener* listener, void (Listener::*method)(const Event&)) {
-    struct ListenerImpl : BaseListener {
-      typedef void (Listener::*Method)(const Event&);
-      Listener* listener_;
-      Method method_;
-
-      ListenerImpl(Listener* listener, Method method) : listener_(listener), method_(method) {}
-
-      void operator()(const void* event) override {
-        const auto e = static_cast<const Event*>(event);
-        (listener_->*method_)(*e);
-      }
-    };
-
-    auto& listeners = listeners_map_[GetTypeId<Event>()];
-    listeners.push_back(std::make_shared<ListenerImpl>(listener, method));
-  }
-
-  template <typename Event>
-  void send(const Event& event) {
-    if (is_sending_) {
-      assert(0 && "TODO");
-    } else {
-      is_sending_ = true;
-      auto id = GetTypeId<Event>();
-      auto it = listeners_map_.find(id);
-      if (it == listeners_map_.end()) {
-        is_sending_ = false;
-        return;
-      }
-      
-      for (auto listener : it->second) {
-        (*listener)(&event);
-      }
-      is_sending_ = false;
-
-      // complete unsibscribe
-    }
-  }
-
-  template <class Listener>
-  void unsibscribe(Listener* listener) {
-    if (is_sending_) {
-      //
-      assert(0 && "TODO");
-    }
-  }
-
- private:
-  bool is_sending_ = false;
-  std::unordered_map<size_t, std::vector<std::shared_ptr<BaseListener>>> listeners_map_;
+class RouteInterface : public SystemInterface<RouteInterface> {
+ public:
+  virtual void foo() = 0;
 };
 
-//
-struct Foo {
-  void operator()(const EventA& a) { std::cout << "Foo::onA() " << a.x << std::endl; }
+class RouteSystemImpl : public RouteInterface {
+ public:
+  void foo() override { std::cout << "RouteImpl::foo()" << std::endl; }
 
-  void operator()(const EventB& b) { std::cout << "Foo::onB()" << b.s << std::endl; }
-};
-
-struct FooB {
-  void operator()(const EventB& b) { std::cout << "Foo2::onB()" << b.s << std::endl; }
-};
-
-struct FooM {
-  /*
-  FooM(EvenBus* bus) : bus_(bus) {
-    bus.subscribe<EventB>(this, &FooM::methodB);
+ protected:
+  bool configure(Core* core) override {
+    auto& em = core->eventManager();
+    std::cout<<"RouteImpl::subscribe on gps events"<<std::endl;
+    em.subscribe<gps::GPSPositionEvent>(this, &RouteSystemImpl::onGPSPosition);
+    return true;
   }
 
-  ~FooM() {
-    std::cout<<"FooM::~FooM()"<<std::endl;
-    bus.unsibscribe(this);
+  void onGPSPosition(const gps::GPSPositionEvent& gps_position) {
+    std::cout<<"Route::onGPSPosition "<< gps_position.x << std::endl;
   }
-  */
-  
-  void methodB(const EventB& b) {
-    std::cout << "FooM::methodB()" << b.s << std::endl;
-    m = b.s;
-    // bus.send(EventA(1)); // recursion - tobe implemented
+};
+
+int main(int, char* []) {
+  Core core;
+  // register systems
+  {
+    core.addSystem(std::make_shared<gps::impl::GpsSystemImpl>());
+
+    // don't allow to register same interface twice
+    auto success = core.addSystem(std::make_shared<gps::impl::GpsSystemImpl2>());
+    assert(success == false);
+
+    core.addSystem(std::make_shared<RouteSystemImpl>());
+    //
+    core.configure();
+  }
+
+  //
+  auto route = core.getSystem<RouteInterface>();
+  assert(route);
+  route->foo();
+
+  // process gps 
+  {
+    auto gps = core.getSystem<gps::GpsInterface>();
+    assert(gps);
+    gps->sendPos(5);
+    gps->sendPos(15);
+    gps->sendPos(42);
   }
   
-  EventBus* bus_;
+  std::cout << "done" << std::endl;
 
-  std::string m;
-};
-
-struct FooMFactory {
-
-  std::shared_ptr<FooM> case1(EventBus* bus, bool hasA) {
-    std::shared_ptr<FooM> fooM = std::make_shared<FooM>();
-    // bus->subscribe<EventB>(fooM.get());
-    if (hasA) {
-      //...
-    }
-    return fooM;
-  }
-};
+  return 0;
+}
 
 //
-int main(int argc, char* argv[]) {
+int main2(int argc, char* argv[]) {
   std::cout << "EventA id:" << GetTypeId<EventA>() << std::endl;
   std::cout << "EventA id:" << GetTypeId<EventA>() << std::endl;
   std::cout << "EventA id:" << GetTypeId<EventA>() << std::endl;
@@ -202,7 +115,7 @@ int main(int argc, char* argv[]) {
   {
     FooM fm;
     bus.subscribe<EventB>(&fm, &FooM::methodB);
-    //CRASH: we didn't unsubscribe
+    // CRASH: we didn't unsubscribe
     //    bus.unsubscibe(&fm);
   }
   // bus.subscribe<EventA>(&fb); // not possible to compile - unsupported type but this listener
