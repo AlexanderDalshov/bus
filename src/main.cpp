@@ -89,38 +89,3 @@ int main(int, char* []) {
 
   return 0;
 }
-
-//
-int main2(int argc, char* argv[]) {
-  std::cout << "EventA id:" << GetTypeId<EventA>() << std::endl;
-  std::cout << "EventA id:" << GetTypeId<EventA>() << std::endl;
-  std::cout << "EventA id:" << GetTypeId<EventA>() << std::endl;
-  std::cout << "EventB id:" << GetTypeId<EventB>() << std::endl;
-  std::cout << "EventA id:" << GetTypeId<EventA>() << std::endl;
-
-  EventBus bus;
-  Foo f;
-  bus.subscribe<EventA>(&f);
-
-  //
-  bus.send(EventA(5));
-  bus.send(EventA(42));
-  bus.send(EventB("bad"));
-
-  FooB fb;
-
-  bus.subscribe<EventB>(&f);
-  bus.subscribe<EventB>(&fb);
-  //
-  {
-    FooM fm;
-    bus.subscribe<EventB>(&fm, &FooM::methodB);
-    // CRASH: we didn't unsubscribe
-    //    bus.unsubscibe(&fm);
-  }
-  // bus.subscribe<EventA>(&fb); // not possible to compile - unsupported type but this listener
-
-  bus.send(EventB("Hello"));
-  bus.send(EventB("World! World World World"));
-  return 0;
-}

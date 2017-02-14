@@ -16,17 +16,6 @@ size_t GetTypeId() {
   return id;
 }
 
-struct EventA {
-  int x;
-  explicit EventA(int x) : x(x) {}
-};
-
-struct EventB {
-  std::string s;
-  explicit EventB(std::string s) : s(s) {}
-};
-
-
 class EventBus;
 
 class BusListener {
@@ -132,48 +121,93 @@ class EventBus {
   std::unordered_map<size_t, std::vector<std::shared_ptr<BaseListener>>> listeners_map_;
 };
 
-//
-struct Foo {
-  void operator()(const EventA& a) { std::cout << "Foo::onA() " << a.x << std::endl; }
+// struct EventA {
+//   int x;
+//   explicit EventA(int x) : x(x) {}
+// };
 
-  void operator()(const EventB& b) { std::cout << "Foo::onB()" << b.s << std::endl; }
-};
+// struct EventB {
+//   std::string s;
+//   explicit EventB(std::string s) : s(s) {}
+// };
 
-struct FooB {
-  void operator()(const EventB& b) { std::cout << "Foo2::onB()" << b.s << std::endl; }
-};
+// //
+// struct Foo {
+//   void operator()(const EventA& a) { std::cout << "Foo::onA() " << a.x << std::endl; }
 
-struct FooM {
-  /*
-  FooM(EvenBus* bus) : bus_(bus) {
-    bus.subscribe<EventB>(this, &FooM::methodB);
-  }
+//   void operator()(const EventB& b) { std::cout << "Foo::onB()" << b.s << std::endl; }
+// };
 
-  ~FooM() {
-    std::cout<<"FooM::~FooM()"<<std::endl;
-    bus.unsibscribe(this);
-  }
-  */
+// struct FooB {
+//   void operator()(const EventB& b) { std::cout << "Foo2::onB()" << b.s << std::endl; }
+// };
+
+// struct FooM {
+//   /*
+//   FooM(EvenBus* bus) : bus_(bus) {
+//     bus.subscribe<EventB>(this, &FooM::methodB);
+//   }
+
+//   ~FooM() {
+//     std::cout<<"FooM::~FooM()"<<std::endl;
+//     bus.unsibscribe(this);
+//   }
+//   */
   
-  void methodB(const EventB& b) {
-    std::cout << "FooM::methodB()" << b.s << std::endl;
-    m = b.s;
-    // bus.send(EventA(1)); // recursion - tobe implemented
-  }
+//   void methodB(const EventB& b) {
+//     std::cout << "FooM::methodB()" << b.s << std::endl;
+//     m = b.s;
+//     // bus.send(EventA(1)); // recursion - tobe implemented
+//   }
   
-  EventBus* bus_;
+//   EventBus* bus_;
 
-  std::string m;
-};
+//   std::string m;
+// };
 
-struct FooMFactory {
+// struct FooMFactory {
 
-  std::shared_ptr<FooM> case1(EventBus* bus, bool hasA) {
-    std::shared_ptr<FooM> fooM = std::make_shared<FooM>();
-    // bus->subscribe<EventB>(fooM.get());
-    if (hasA) {
-      //...
-    }
-    return fooM;
-  }
-};
+//   std::shared_ptr<FooM> case1(EventBus* bus, bool hasA) {
+//     std::shared_ptr<FooM> fooM = std::make_shared<FooM>();
+//     // bus->subscribe<EventB>(fooM.get());
+//     if (hasA) {
+//       //...
+//     }
+//     return fooM;
+//   }
+// };
+// //
+// int main2(int argc, char* argv[]) {
+//   std::cout << "EventA id:" << GetTypeId<EventA>() << std::endl;
+//   std::cout << "EventA id:" << GetTypeId<EventA>() << std::endl;
+//   std::cout << "EventA id:" << GetTypeId<EventA>() << std::endl;
+//   std::cout << "EventB id:" << GetTypeId<EventB>() << std::endl;
+//   std::cout << "EventA id:" << GetTypeId<EventA>() << std::endl;
+
+//   EventBus bus;
+//   Foo f;
+//   bus.subscribe<EventA>(&f);
+
+//   //
+//   bus.send(EventA(5));
+//   bus.send(EventA(42));
+//   bus.send(EventB("bad"));
+
+//   FooB fb;
+
+//   bus.subscribe<EventB>(&f);
+//   bus.subscribe<EventB>(&fb);
+//   //
+//   {
+//     FooM fm;
+//     bus.subscribe<EventB>(&fm, &FooM::methodB);
+//     // CRASH: we didn't unsubscribe
+//     //    bus.unsubscibe(&fm);
+//   }
+//   // bus.subscribe<EventA>(&fb); // not possible to compile - unsupported type but this listener
+
+//   bus.send(EventB("Hello"));
+//   bus.send(EventB("World! World World World"));
+//   return 0;
+// }
+
